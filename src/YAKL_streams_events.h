@@ -313,12 +313,12 @@ namespace yakl {
 
     class Stream {
       protected:
-      std::shared_ptr<sycl::queue> my_stream;
+      std::shared_ptr<synergy::queue> my_stream;
 
       public:
 
       Stream() { }
-      Stream(sycl::queue &sycl_queue) { my_stream = std::make_shared<sycl::queue>(sycl_queue); }
+      Stream(synergy::queue &sycl_queue) { my_stream = std::make_shared<synergy::queue>(sycl_queue); }
       ~Stream() { my_stream.reset(); }
 
       Stream(Stream const  &rhs) { my_stream = rhs.my_stream; }
@@ -329,12 +329,12 @@ namespace yakl {
       void create() {
         if constexpr (streams_enabled) {
           sycl::device dev(sycl::gpu_selector{});
-          my_stream = std::make_shared<sycl::queue>( sycl::queue( dev , asyncHandler , sycl::property_list{sycl::property::queue::in_order{}} ) );
+          my_stream = std::make_shared<synergy::queue>( synergy::queue( dev , asyncHandler , sycl::property_list{sycl::property::queue::in_order{}} ) );
         }
       }
 
       void destroy() { my_stream.reset(); }
-      sycl::queue & get_real_stream() const { return my_stream ? *my_stream : sycl_default_stream(); }
+      synergy::queue & get_real_stream() const { return my_stream ? *my_stream : sycl_default_stream(); }
       bool operator==(Stream stream) const { return get_real_stream() == stream.get_real_stream(); }
       inline void wait_on_event(Event event);
       bool is_default_stream() const { return get_real_stream() == sycl_default_stream(); }

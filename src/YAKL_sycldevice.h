@@ -1,4 +1,4 @@
-
+#include <synergy.hpp>
 #pragma once
 // Included by YAKL.h
 
@@ -22,7 +22,7 @@ namespace yakl {
     // Singleton pattern to initialize a SYCL queue upon first instantiation
     class dev_mgr {
     public:
-      sycl::queue &default_queue() {
+      synergy::queue &default_queue() {
         return *(_queues.get());
       }
 
@@ -40,15 +40,15 @@ namespace yakl {
       dev_mgr() {
         sycl::device dev(sycl::gpu_selector{});
         _devs = std::make_shared<sycl::device>(dev);
-        _queues = std::make_shared<sycl::queue>(dev,
+        _queues = std::make_shared<synergy::queue>(dev,
                                                 asyncHandler,
-                                                sycl::property_list{sycl::property::queue::in_order{}});
+                                                sycl::property_list{sycl::property::queue::enable_profiling{}, sycl::property::queue::in_order{}});
       }
       std::shared_ptr<sycl::device> _devs;
-      std::shared_ptr<sycl::queue> _queues;
+      std::shared_ptr<synergy::queue> _queues;
     };
 
-    static inline sycl::queue &sycl_default_stream() {
+    static inline synergy::queue &sycl_default_stream() {
       return dev_mgr::instance().default_queue();
     }
 

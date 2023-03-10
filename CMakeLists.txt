@@ -32,6 +32,8 @@ message(STATUS "** YAKL is using the following C++ flags: ${YAKL_COMPILER_FLAGS}
 set_source_files_properties(${YAKL_F90_SOURCE} PROPERTIES COMPILE_FLAGS "${YAKL_F90_FLAGS}")
 
 add_library(yakl STATIC ${YAKL_SOURCE})
+add_subdirectory(SYnergy)
+
 set_property(TARGET yakl PROPERTY CXX_STANDARD 17)
 
 target_include_directories(yakl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -49,6 +51,8 @@ endif()
 
 if ("${YAKL_ARCH}" STREQUAL "SYCL")
   target_link_libraries(yakl "${YAKL_COMPILER_FLAGS}")
+  target_link_libraries(yakl  synergy)
+
 endif()
 
 if ("${YAKL_ARCH}" STREQUAL "OPENMP45")
