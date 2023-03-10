@@ -51,7 +51,6 @@
   #include "rocfft.h"
 #elif defined(YAKL_ARCH_SYCL)
   #include <sycl/sycl.hpp>
-  #include <oneapi/mkl.hpp>
 #elif defined(YAKL_ARCH_OPENMP)
   #include <omp.h>
 #endif
