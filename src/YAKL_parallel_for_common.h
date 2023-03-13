@@ -229,15 +229,22 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
     #ifdef SYCL_DEVICE_COPYABLE
       if constexpr (sizeof(F) < 1700) {
         SYCL_Functor_Wrapper sycl_functor_wrapper(f);
-        sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
-          if (item.get_global_id(0) < bounds.nIter) {
-            callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
-          }
-        });
-        e.wait();
-      // std::cout << "energy_consumption [J]: " << config.get_stream().get_real_stream().kernel_energy_consumption(e) << "\n";
-      std::cout<< kernel_name << std::endl;
-
+        synergy::queue& q = config.get_stream().get_real_stream();
+        sycl::event e = q.submit([&](sycl::handler& cgh){
+          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+            if (item.get_global_id(0) < bounds.nIter) {
+              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+            }
+          });
+        });  
+        // sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+        //   if (item.get_global_id(0) < bounds.nIter) {
+        //     callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+        //   }
+        // });
+        #ifdef _ENABLE_PROFILING
+          std::cout <<"kernel_name: "<< kernel_name <<  ", energy_consumption [J]: " << config.get_stream().get_real_stream().kernel_energy_consumption(e) << "\n";
+        #endif
       } else {
         F *fp = (F *) alloc_device(sizeof(F),"functor_buffer");
         auto copyEvent = config.get_stream().get_real_stream().memcpy(fp, &f, sizeof(F));
