@@ -242,7 +242,7 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
         //     callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
         //   }
         // });
-        #ifdef _ENABLE_PROFILING
+        #ifdef SYNERGY_ENABLE_PROFILING 
           std::cout <<"kernel_name: "<< kernel_name <<  ", energy_consumption [J]: " << config.get_stream().get_real_stream().kernel_energy_consumption(e) << "\n";
         #endif
       } else {
