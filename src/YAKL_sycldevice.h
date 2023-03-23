@@ -6,18 +6,7 @@ namespace yakl {
   // This exists to create a queue for SYCL kernels and data transfers
   #ifdef YAKL_ARCH_SYCL
     // Triggered when asynchronous exceptions arise from the SYCL runtime
-    auto asyncHandler = [](sycl::exception_list exceptions) {
-      for (std::exception_ptr const &e : exceptions) {
-        try {
-          std::rethrow_exception(e);
-        } catch (sycl::exception const &e) {
-          std::cerr << "Caught asynchronous SYCL exception:" << std::endl
-          << e.what() << std::endl
-          << "Exception caught at file:" << __FILE__
-          << ", line:" << __LINE__ << std::endl;
-        }
-      }
-    };
+    
 
     // Singleton pattern to initialize a SYCL queue upon first instantiation
     class dev_mgr {
@@ -41,8 +30,19 @@ namespace yakl {
         sycl::device dev(sycl::gpu_selector{});
         _devs = std::make_shared<sycl::device>(dev);
         _queues = std::make_shared<synergy::queue>(dev,
-                                                asyncHandler,
-                                                sycl::property_list{sycl::property::queue::enable_profiling{}, sycl::property::queue::in_order{}});
+                                                 [](sycl::exception_list exceptions) {
+                                                      for (std::exception_ptr const &e : exceptions) {
+                                                        try {
+                                                          std::rethrow_exception(e);
+                                                        } catch (sycl::exception const &e) {
+                                                          std::cerr << "Caught asynchronous SYCL exception:" << std::endl
+                                                          << e.what() << std::endl
+                                                          << "Exception caught at file:" << __FILE__
+                                                          << ", line:" << __LINE__ << std::endl;
+                                                        }
+                                                      }
+                                                    },
+                                                  sycl::property_list{sycl::property::queue::enable_profiling{}, sycl::property::queue::in_order{}});
       }
       std::shared_ptr<sycl::device> _devs;
       std::shared_ptr<synergy::queue> _queues;

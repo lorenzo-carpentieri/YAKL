@@ -329,7 +329,19 @@ namespace yakl {
       void create() {
         if constexpr (streams_enabled) {
           sycl::device dev(sycl::gpu_selector{});
-          my_stream = std::make_shared<synergy::queue>( synergy::queue( dev , asyncHandler , sycl::property_list{sycl::property::queue::in_order{}} ) );
+          my_stream = std::make_shared<synergy::queue>( synergy::queue( dev , 
+                                                    [](sycl::exception_list exceptions) {
+                                                      for (std::exception_ptr const &e : exceptions) {
+                                                        try {
+                                                          std::rethrow_exception(e);
+                                                        } catch (sycl::exception const &e) {
+                                                          std::cerr << "Caught asynchronous SYCL exception:" << std::endl
+                                                          << e.what() << std::endl
+                                                          << "Exception caught at file:" << __FILE__
+                                                          << ", line:" << __LINE__ << std::endl;
+                                                        }
+                                                      }
+                                                    } , sycl::property_list{sycl::property::queue::in_order{}} ) );
         }
       }
 
