@@ -220,6 +220,57 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
 
 
 #ifdef YAKL_ARCH_SYCL
+  
+  //TODO: add freq change parallel_for verison 
+    template<class F, int N, bool simple, int VecLen, bool B4B>
+  void parallel_for_sycl(synergy::frequency mem_freq, synergy::frequency core_freq, Bounds<N,simple> const &bounds , F const &f , std::string kernel_name, LaunchConfig<VecLen,B4B> config) {
+    #ifdef SYCL_DEVICE_COPYABLE
+      if constexpr (sizeof(F) < 1700) {
+        SYCL_Functor_Wrapper sycl_functor_wrapper(f);
+        synergy::queue& q = config.get_stream().get_real_stream();
+        sycl::event e = q.submit(mem_freq, core_freq, [&](sycl::handler& cgh){
+          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+            if (item.get_global_id(0) < bounds.nIter) {
+              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+            }
+          });
+        });  
+        // sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+        //   if (item.get_global_id(0) < bounds.nIter) {
+        //     callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+        //   }
+        // });
+        #ifdef SYNERGY_ENABLE_PROFILING 
+          // uncomment for fine grained profiling print
+          // std::cout <<"kernel_name: "<< kernel_name <<  ", energy_consumption [J]: " << config.get_stream().get_real_stream().kernel_energy_consumption(e) << "\n";
+        #endif
+      } else {
+        F *fp = (F *) alloc_device(sizeof(F),"functor_buffer");
+        auto copyEvent = config.get_stream().get_real_stream().memcpy(fp, &f, sizeof(F));
+        config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen), [=] (sycl::nd_item<1> item) {
+          if (item.get_global_id(0) < bounds.nIter) {
+            callFunctor( *fp , bounds , item.get_global_id(0) );
+          }
+        });
+        free_device( fp , "functor_buffer" );
+        copyEvent.wait();
+      }
+    #else
+      F *fp = (F *) alloc_device(sizeof(F),"functor_buffer");
+      auto copyEvent = config.get_stream().get_real_stream().memcpy(fp, &f, sizeof(F));
+      config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen), [=] (sycl::nd_item<1> item) {
+        if (item.get_global_id(0) < bounds.nIter) {
+          callFunctor( *fp , bounds , item.get_global_id(0) );
+        }
+      });
+      free_device( fp , "functor_buffer" );
+      copyEvent.wait();
+    #endif
+
+    check_last_error();
+  }
+  
+  
   // Kernels are launched with the SYCL parallel_for routine. 
   // Currently, SYCL must copy this to the device manually and then run from the device
   // Also, there is a violation of dependence wherein the stream must synchronized with a wait()
@@ -560,11 +611,75 @@ inline void parallel_for( char const * str , Bounds<N,simple> const &bounds , F 
   #endif
 }
 
+
+
+template <class F, int N, bool simple, int VecLen=YAKL_DEFAULT_VECTOR_LEN , bool B4B=false>
+inline void parallel_for( synergy::frequency mem_freq, synergy::frequency core_freq, char const * str , Bounds<N,simple> const &bounds , F const &f ,
+                          std::string kernel_name="default",  LaunchConfig<VecLen,B4B> config = LaunchConfig<>()) {
+                            #ifdef YAKL_VERBOSE
+    verbose_inform(std::string("Launching parallel_for labeled \"")+std::string(str)+std::string("\" with ")+std::to_string(bounds.nIter)+" threads",str);
+  #endif
+  // Automatically time (if requested) and add nvtx ranges for easier nvprof / nsight profiling
+  #ifdef YAKL_AUTO_PROFILE
+    timer_start(str);
+  #endif
+  #ifdef YAKL_ARCH_CUDA
+    nvtxRangePushA(str);
+  #endif
+  #ifdef YAKL_ARCH_HIP
+    roctxRangePushA(str);
+  #endif
+
+  bool do_b4b = false;
+  #ifdef YAKL_B4B
+    if constexpr (B4B) do_b4b = true;
+  #endif
+
+  if (do_b4b) {
+    fence();
+    // The if-state ment is redundant, but it shields cpu_serial from compilation if b4b isn't desired
+    // For instance, if the lambda is YAKL_DEVICE_LAMBDA, compiling this line will give an error because
+    // it isn't available on the host.
+    #ifdef YAKL_B4B
+      if constexpr (B4B) { parallel_for_cpu_serial( bounds , f ); }
+    #endif
+  } else {
+    #ifdef YAKL_ARCH_CUDA
+      parallel_for_cuda( bounds , f , config );
+    #elif defined(YAKL_ARCH_HIP)
+      parallel_for_hip ( bounds , f , config );
+    #elif defined(YAKL_ARCH_SYCL)
+      parallel_for_sycl(mem_freq, core_freq, bounds , f , kernel_name, config);
+    #else
+      parallel_for_cpu_serial( bounds , f );
+    #endif
+  }
+  #if defined(YAKL_AUTO_FENCE)
+    fence();
+  #endif
+
+  #ifdef YAKL_ARCH_HIP
+    roctxRangePop();
+  #endif
+  #ifdef YAKL_ARCH_CUDA
+    nvtxRangePop();
+  #endif
+  #ifdef YAKL_AUTO_PROFILE
+    timer_stop(str);
+  #endif
+}
+
 // Default parameter to config, VecLen, and B4B already specified in YAKL_parallel_for_c.h and YAKL_parallel_for_fortran.h
 template <class F, int N, bool simple, int VecLen=YAKL_DEFAULT_VECTOR_LEN, bool B4B=false>
 inline void parallel_for( Bounds<N,simple> const &bounds , F const &f ,std::string kernel_name = "default",
                           LaunchConfig<VecLen,B4B> config = LaunchConfig<>() ) {
   parallel_for( "Unlabeled" , bounds , f , kernel_name, config );
+}
+// Default parameter to config, VecLen, and B4B already specified in YAKL_parallel_for_c.h and YAKL_parallel_for_fortran.h
+template <class F, int N, bool simple, int VecLen=YAKL_DEFAULT_VECTOR_LEN, bool B4B=false>
+inline void parallel_for(synergy::frequency mem_freq, synergy::frequency core_freq,  Bounds<N,simple> const &bounds , F const &f ,std::string kernel_name = "default",
+                          LaunchConfig<VecLen,B4B> config = LaunchConfig<>() ) {
+  parallel_for(mem_freq, core_freq, "Unlabeled" , bounds , f , kernel_name, config );
 }
 
 template <class F, int VecLen=YAKL_DEFAULT_VECTOR_LEN, bool B4B=false>
