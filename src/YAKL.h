@@ -3,7 +3,7 @@
 
 #include "YAKL_header.h"
 #include "YAKL_defines.h"
-
+#include "freq_map.h"
 /** @namespace yakl::c
   * @brief Contains `Bounds` class, and `parallel_for()` routines using C-style indexing and ordering */
 

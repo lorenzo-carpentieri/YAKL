@@ -228,13 +228,32 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
       if constexpr (sizeof(F) < 1700) {
         SYCL_Functor_Wrapper sycl_functor_wrapper(f);
         synergy::queue& q = config.get_stream().get_real_stream();
-        sycl::event e = q.submit(mem_freq, core_freq, [&](sycl::handler& cgh){
+        #ifdef PER_APP
+        sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerApp()[kernel_name], [&](sycl::handler& cgh){
           cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
             if (item.get_global_id(0) < bounds.nIter) {
               callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
             }
           });
         });  
+        #elif PER_KERNEL
+         sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerKernel()[kernel_name], [&](sycl::handler& cgh){
+          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+            if (item.get_global_id(0) < bounds.nIter) {
+              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+            }
+          });
+        });  
+        #else
+         sycl::event e = q.submit(0, core_freq, [&](sycl::handler& cgh){
+          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+            if (item.get_global_id(0) < bounds.nIter) {
+              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+            }
+          });
+        });  
+
+        #endif
         // sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
         //   if (item.get_global_id(0) < bounds.nIter) {
         //     callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
@@ -281,13 +300,31 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
       if constexpr (sizeof(F) < 1700) {
         SYCL_Functor_Wrapper sycl_functor_wrapper(f);
         synergy::queue& q = config.get_stream().get_real_stream();
-        sycl::event e = q.submit([&](sycl::handler& cgh){
+        #ifdef PER_APP
+        sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerApp()[kernel_name], [&](sycl::handler& cgh){
           cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
             if (item.get_global_id(0) < bounds.nIter) {
               callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
             }
           });
         });  
+        #elif PER_KERNEL
+         sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerKernel()[kernel_name], [&](sycl::handler& cgh){
+          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+            if (item.get_global_id(0) < bounds.nIter) {
+              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+            }
+          });
+        });  
+        #else
+         sycl::event e = q.submit([&](sycl::handler& cgh){
+          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+            if (item.get_global_id(0) < bounds.nIter) {
+              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+            }
+          });
+        });  
+        #endif
         // sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
         //   if (item.get_global_id(0) < bounds.nIter) {
         //     callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
