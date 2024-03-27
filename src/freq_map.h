@@ -46,7 +46,45 @@ public:
         return intelMax1100FreqMap;
     }
 
-    static std::map<std::string, double>& getNvidiaV100FreqMap() {
+    static std::map<std::string, double>& getNvidiaFreqMapPerApp() {
+        static std::map<std::string, double> nvidiaV100FreqMap = {
+            {"compute_tendencies_x_1",960},
+            {"compute_tendencies_x_2",960},
+            {"compute_tendencies_z_1",960},
+            {"compute_tendencies_z_2",960},
+            {"init_1",960},
+            {"init_2",960},
+            {"init_3",960},
+            {"reductions_1",960},
+            {"semi_discret_step_1",960},
+            {"set_halo_values_x_2",960},
+            {"set_halo_values_x_3",960},
+            {"set_halo_values_x_4",960},
+            {"set_halo_values_z_1",960}
+            // Add more initializations if needed
+        };
+        return nvidiaV100FreqMap;
+    }
+     static std::map<std::string, double>& getNvidiaFreqMapPerKernel() {
+        static std::map<std::string, double> nvidiaV100FreqMap = {
+            {"compute_tendencies_x_1",960},
+            {"compute_tendencies_x_2",0},
+            {"compute_tendencies_z_1",960},
+            {"compute_tendencies_z_2",0},
+            {"init_1",960},
+            {"init_2",0},
+            {"init_3",0},
+            {"reductions_1",960},
+            {"semi_discret_step_1",960},
+            {"set_halo_values_x_2",960},
+            {"set_halo_values_x_3",0},
+            {"set_halo_values_x_4",960},
+            {"set_halo_values_z_1",0}
+            // Add more initializations if needed
+        };
+        return nvidiaV100FreqMap;
+    }
+     static std::map<std::string, double>& getNvidiaFreqMapPerPhase() {
         static std::map<std::string, double> nvidiaV100FreqMap = {
             {"kernel3", 4.0},
             {"kernel4", 5.5}
@@ -55,7 +93,7 @@ public:
         return nvidiaV100FreqMap;
     }
 
-    static std::map<std::string, double>& getAmdMI100FreqMap() {
+    static std::map<std::string, double>& getAmdFreqMap() {
         static std::map<std::string, double> amdMI100FreqMap = {
             {"kernel5", 6.0},
             {"kernel6", 7.5}
@@ -66,5 +104,9 @@ public:
 };
 
 #endif /* KERNEL_MAP_HPP */
+
+
+
+
 
 

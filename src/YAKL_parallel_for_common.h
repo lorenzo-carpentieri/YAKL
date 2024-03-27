@@ -2,7 +2,31 @@
 // #pragma once is purposefully omitted here because it needs to be included twice: once in each namespace: c and fortran
 // Included by YAKL_parallel_for_c.h and YAKL_parallel_for_fortran.h
 // Inside the yakl::c and yakl::fortran namespaces
-
+#if VENDOR == Intel  
+  #ifdef PER_APP
+    #define FreqMap KernelMap::getIntelMax1100FreqMap_PerApp()   
+  #elif PER_KERNEL
+    #define FreqMap KernelMap::getIntelMax1100FreqMap_PerKernel()   
+  #else
+    #define FreqMap KernelMap::getIntelMax1100FreqMap_PerPhase()   
+  #endif
+#elif VENDOR == NVIDIA
+   #ifdef PER_APP
+    #define FreqMap KernelMap::getNvidiaFreqMap_PerApp()   
+  #elif PER_KERNEL
+    #define FreqMap KernelMap::getNvidiaFreqMap_PerKernel()   
+  #else
+    #define FreqMap KernelMap::getNvidiaFreqMap_PerPhase()   
+  #endif
+#else
+  #ifdef PER_APP
+    #define FreqMap KernelMap::getAMDFreqMap_PerApp()   
+  #elif PER_KERNEL
+    #define FreqMap KernelMap::getAmdFreqMap_PerKernel()   
+  #else
+    #define FreqMap KernelMap::getAmdFreqMap_PerPhase()   
+  #endif
+#endif
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Convenience functions to handle the indexing
 // Reduces code for the rest of the parallel_for implementations
@@ -224,12 +248,15 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
   //TODO: add freq change parallel_for verison 
     template<class F, int N, bool simple, int VecLen, bool B4B>
   void parallel_for_sycl(synergy::frequency mem_freq, synergy::frequency core_freq, Bounds<N,simple> const &bounds , F const &f , std::string kernel_name, LaunchConfig<VecLen,B4B> config) {
+    
+    
+    
     #ifdef SYCL_DEVICE_COPYABLE
       if constexpr (sizeof(F) < 1700) {
         SYCL_Functor_Wrapper sycl_functor_wrapper(f);
         synergy::queue& q = config.get_stream().get_real_stream();
         #ifdef PER_APP
-        sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerApp()[kernel_name], [&](sycl::handler& cgh){
+        sycl::event e = q.submit(0, FreqMap[kernel_name], [&](sycl::handler& cgh){
           cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
             if (item.get_global_id(0) < bounds.nIter) {
               callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
@@ -237,7 +264,7 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
           });
         });  
         #elif PER_KERNEL
-         sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerKernel()[kernel_name], [&](sycl::handler& cgh){
+         sycl::event e = q.submit(0, FreqMap[kernel_name], [&](sycl::handler& cgh){
           cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
             if (item.get_global_id(0) < bounds.nIter) {
               callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
