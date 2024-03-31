@@ -2,7 +2,7 @@
 // #pragma once is purposefully omitted here because it needs to be included twice: once in each namespace: c and fortran
 // Included by YAKL_parallel_for_c.h and YAKL_parallel_for_fortran.h
 // Inside the yakl::c and yakl::fortran namespaces
-#if VENDOR == Intel  
+#ifdef INTEL  
   #ifdef PER_APP
     #define FreqMap KernelMap::getIntelMax1100FreqMap_PerApp()   
   #elif PER_KERNEL
@@ -10,7 +10,7 @@
   #else
     #define FreqMap KernelMap::getIntelMax1100FreqMap_PerPhase()   
   #endif
-#elif VENDOR == NVIDIA
+#elif NVIDIA
    #ifdef PER_APP
     #define FreqMap KernelMap::getNvidiaFreqMap_PerApp()   
   #elif PER_KERNEL
@@ -272,13 +272,23 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
           });
         });  
         #else
-         sycl::event e = q.submit(0, 0, [&](sycl::handler& cgh){
-          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
-            if (item.get_global_id(0) < bounds.nIter) {
-              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
-            }
-          });
-        });  
+          #if HIDING == 0
+          sycl::event e = q.submit(0, core_freq, [&](sycl::handler& cgh){
+            cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+              if (item.get_global_id(0) < bounds.nIter) {
+                callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+              }
+            });
+          });  
+          #else
+            sycl::event e = q.submit([&](sycl::handler& cgh){
+            cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+              if (item.get_global_id(0) < bounds.nIter) {
+                callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+              }
+            });
+          });  
+          #endif
 
         #endif
         // sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
@@ -328,7 +338,7 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
         SYCL_Functor_Wrapper sycl_functor_wrapper(f);
         synergy::queue& q = config.get_stream().get_real_stream();
         #ifdef PER_APP
-        sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerApp()[kernel_name], [&](sycl::handler& cgh){
+        sycl::event e = q.submit(0, FreqMap[kernel_name], [&](sycl::handler& cgh){
           cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
             if (item.get_global_id(0) < bounds.nIter) {
               callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
@@ -336,7 +346,7 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
           });
         });  
         #elif PER_KERNEL
-         sycl::event e = q.submit(0, KernelMap::getIntelMax1100FreqMap_PerKernel()[kernel_name], [&](sycl::handler& cgh){
+         sycl::event e = q.submit(0, FreqMap[kernel_name], [&](sycl::handler& cgh){
           cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
             if (item.get_global_id(0) < bounds.nIter) {
               callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
@@ -344,13 +354,13 @@ YAKL_DEVICE_INLINE void callFunctorOuter(F const &f , Bounds<N,simple> const &bn
           });
         });  
         #else
-         sycl::event e = q.submit([&](sycl::handler& cgh){
-          cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
-            if (item.get_global_id(0) < bounds.nIter) {
-              callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
-            }
-          });
-        });  
+          sycl::event e = q.submit([&](sycl::handler& cgh){
+            cgh.parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
+              if (item.get_global_id(0) < bounds.nIter) {
+                callFunctor( sycl_functor_wrapper.get_functor() , bounds , item.get_global_id(0) );
+              }
+            });
+          });  
         #endif
         // sycl::event e = config.get_stream().get_real_stream().parallel_for( sycl::nd_range<1>(((bounds.nIter-1)/VecLen+1)*VecLen,VecLen) , [=] (sycl::nd_item<1> item) {
         //   if (item.get_global_id(0) < bounds.nIter) {

@@ -46,7 +46,7 @@ public:
         return intelMax1100FreqMap;
     }
 
-    static std::map<std::string, double>& getNvidiaFreqMapPerApp() {
+    static std::map<std::string, double>& getNvidiaFreqMap_PerApp() {
         static std::map<std::string, double> nvidiaV100FreqMap = {
             {"compute_tendencies_x_1",960},
             {"compute_tendencies_x_2",960},
@@ -65,7 +65,7 @@ public:
         };
         return nvidiaV100FreqMap;
     }
-     static std::map<std::string, double>& getNvidiaFreqMapPerKernel() {
+     static std::map<std::string, double>& getNvidiaFreqMap_PerKernel() {
         static std::map<std::string, double> nvidiaV100FreqMap = {
             {"compute_tendencies_x_1",960},
             {"compute_tendencies_x_2",0},
@@ -84,15 +84,7 @@ public:
         };
         return nvidiaV100FreqMap;
     }
-     static std::map<std::string, double>& getNvidiaFreqMapPerPhase() {
-        static std::map<std::string, double> nvidiaV100FreqMap = {
-            {"kernel3", 4.0},
-            {"kernel4", 5.5}
-            // Add more initializations if needed
-        };
-        return nvidiaV100FreqMap;
-    }
-
+     
     static std::map<std::string, double>& getAmdFreqMap() {
         static std::map<std::string, double> amdMI100FreqMap = {
             {"kernel5", 6.0},
